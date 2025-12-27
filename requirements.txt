@@ -1,0 +1,2 @@
+# requirements.txt
+# Este projeto não requer pacotes adicionais além da biblioteca padrão do Python
