@@ -10,6 +10,12 @@ import traceback
 import argparse
 from typing import Dict, List, Optional
 
+def _main_log(message: str) -> None:
+    print(f"[MAIN] {message}", flush=True)
+
+def _main_fatal(message: str) -> None:
+    print(f"[MAIN FATAL] {message}", file=sys.stderr, flush=True)
+
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
     try:
@@ -181,6 +187,14 @@ class PrusaOrcaConverter:
         log_message = f"[{timestamp}] {level.upper()}: {message}"
         if self.log_callback:
             self.log_callback(log_message)
+
+    def log_mapping_summary(self, configs: Dict[str, Dict[str, str]]) -> None:
+        """Log per-section total vs mappable param count, for both UI and headless."""
+        for section_name, config in configs.items():
+            ini_type = section_name.split(":")[0].lower() if ":" in section_name else "print"
+            mapped = self.parameter_map.get(ini_type, {})
+            mappable = sum(1 for k in config if k in mapped)
+            self.log("info", f"Section {section_name}: {mappable} of {len(config)} parameters are mappable")
     
     def read_ini_file(self, file_path: Path) -> Dict[str, Dict[str, str]]:
         """Read an INI file and return a dictionary of sections and key-value pairs"""
@@ -668,6 +682,9 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
             total_sections = len(all_configs)
             section_count = 0
             
+            # Log mapping summary once (shared with headless flow)
+            self.converter.log_mapping_summary(all_configs)
+
             # Process each section with progress update
             for section_name, config in all_configs.items():
                 section_count += 1
@@ -713,8 +730,6 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                     # Only show parameters that have a mapping in the converter
                     mapped_params = self.converter.parameter_map.get(ini_type, {})
                     filtered = [(p, v) for p, v in config.items() if p in mapped_params]
-                    self.add_log_message(self._(f"Section {section_name}: {len(filtered)} of {len(config)} parameters are mappable"))
-                    
                     for param, value in filtered:
                         param_count += 1
                         progress = 50 + (param_count / len(filtered)) * 50 * (section_count / total_sections) if filtered else 100
@@ -793,10 +808,11 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
             
             if success:
                 self.progress_status.config(text=self._("Conversion completed successfully"))
-                messagebox.showinfo(self._("Success"), self._("Conversion completed successfully"))
+                _main_log("Converted.")
             else:
                 self.progress_status.config(text=self._("Conversion failed"))
                 messagebox.showerror(self._("Error"), self._("Conversion failed"))
+                _main_log("Failed.")
         
         except Exception as e:
             self.progress_status.config(text=self._(f"Conversion error: {str(e)}"))
@@ -843,14 +859,56 @@ def main():
     parser = argparse.ArgumentParser(description="Convert PrusaSlicer configuration to OrcaSlicer format")
     parser.add_argument("--input", "-i", help="Input PrusaSlicer .ini config file")
     parser.add_argument("--output", "-o", help="Output directory for converted JSON files")
+    parser.add_argument("--log-file", help="Save conversion log to this file (plain text)")
+    parser.add_argument("--convert", "-c", action="store_true",
+                        help="Headless conversion: process immediately and exit (requires --input and --output)")
     args = parser.parse_args()
+
+    print("\n" + "=" * 60, flush=True)
+    print(f"  {APP_NAME}", flush=True)
+    print(f"  Author: {AUTHOR}", flush=True)
+    print(f"  OrcaSlicer target: {ORCA_SLICER_VERSION}", flush=True)
+    print("=" * 60 + "\n", flush=True)
+
+    _main_log("Starting application...")
+
+    if args.convert:
+        if not args.input or not args.output:
+            print("error: --convert requires both --input and --output", file=sys.stderr)
+            sys.exit(1)
+        from pathlib import Path
+        import os
+        log_messages = []
+        old_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+        converter = PrusaOrcaConverter(log_callback=log_messages.append)
+        success = False
+        try:
+            configs = converter.read_ini_file(Path(args.input))
+            if configs:
+                converter.log_mapping_summary(configs)
+                success = converter.convert_config(Path(args.input), Path(args.output), configs)
+        finally:
+            sys.stdout.close()
+            sys.stdout = old_stdout
+        _main_log("Converted." if success else "Failed.")
+        _main_log("Exiting.")
+        if args.log_file:
+            try:
+                with open(args.log_file, 'w') as f:
+                    f.write("\n".join(log_messages) + "\n")
+            except Exception as e:
+                print(f"warning: failed to write log file: {e}", file=sys.stderr)
+        sys.exit(0 if success else 1)
+
 
     try:
         root = tk.Tk()
         app = ConverterApp(root, input_file=args.input, output_dir=args.output)
         root.mainloop()
+        _main_log("Exiting.")
     except Exception as e:
-        print(f"[MAIN FATAL] {e}", file=sys.stderr, flush=True)
+        _main_fatal(str(e))
         traceback.print_exc()
 
 if __name__ == "__main__":
