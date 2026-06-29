@@ -715,7 +715,7 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                     # Only show parameters that have a mapping in the converter
                     mapped_params = self.converter.parameter_map.get(ini_type, {})
                     filtered = [(p, v) for p, v in config.items() if p in mapped_params]
-                    self.add_log_message(f"Section {section_name}: {len(filtered)} of {len(config)} parameters are mappable")
+                    self.add_log_message(self._(f"Section {section_name}: {len(filtered)} of {len(config)} parameters are mappable"))
                     
                     for param, value in filtered:
                         param_count += 1
@@ -741,7 +741,7 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                 )])
                 for sec, cfg in self.loaded_parameters.items()
             )
-            self.add_log_message(f"Loaded {len(self.loaded_parameters)} sections ({total_mappable} mappable parameters)")
+            self.add_log_message(self._(f"Loaded {len(self.loaded_parameters)} sections ({total_mappable} mappable parameters)"))
             
         except Exception as e:
             self.progress_var.set(0)
@@ -784,7 +784,7 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                                 param, value = result
                                 updated_configs[section_name][param] = value
             total_params = sum(len(v) for v in updated_configs.values())
-            self.add_log_message(f"Collected {len(updated_configs)} sections ({total_params} enabled parameters)")
+            self.add_log_message(self._(f"Collected {len(updated_configs)} sections ({total_params} enabled parameters)"))
             
             # Perform conversion
             self.add_log_message(self._("Starting conversion..."))
