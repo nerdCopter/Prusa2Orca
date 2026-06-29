@@ -239,7 +239,7 @@ class PrusaOrcaConverter:
                 'first_layer_height': 'initial_layer_print_height',
                 # Quality / features
                 'thin_walls': 'detect_thin_wall',
-                                'overhangs': 'detect_overhang_wall',
+                'overhangs': 'detect_overhang_wall',
                 'extra_perimeters_on_overhangs': 'extra_perimeters_on_overhangs',
                 'thick_bridges': 'thick_bridges',
                 'avoid_crossing_perimeters': 'reduce_crossing_wall',
@@ -324,7 +324,59 @@ class PrusaOrcaConverter:
                 'end_gcode': 'machine_end_gcode',
                 'before_layer_gcode': 'before_layer_change_gcode',
                 'toolchange_gcode': 'change_filament_gcode',
-                            },
+            },
+        }
+        self.value_map = {
+            'print': {
+                'support_material_style': {
+                    'tree': 'tree_slim',
+                    'organic': 'organic',
+                    'grid': 'grid',
+                    'snug': 'snug',
+                },
+                'seam_position': {
+                    'nearest': 'nearest',
+                    'aligned': 'aligned',
+                    'rear': 'back',
+                    'random': 'random',
+                },
+                'ironing_type': {
+                    '0': 'no ironing',
+                    'all': 'solid',
+                    'topmost': 'topmost',
+                    'top': 'top',
+                },
+                'fuzzy_skin': {
+                    'none': 'none',
+                    'all': 'all',
+                    'exterior': 'external',
+                },
+                'slicing_mode': {
+                    'regular': 'regular',
+                    'even-odd': 'even_odd',
+                    'close-holes': 'close_holes',
+                },
+                'support_material_interface_pattern': {
+                    'rectilinear-interlaced': 'rectilinear_interlaced',
+                },
+                'brim_type': {
+                    'no_brim': 'no_brim',
+                    'outer_only': 'outer_only',
+                    'inner_only': 'inner_only',
+                    'outer_brim': 'outer_only',
+                    'inner_brim': 'inner_only',
+                },
+            },
+        }
+        self.extra_param_map = {
+            'print': {
+                'support_material_style': {
+                    'grid': {'support_type': 'normal(auto)'},
+                    'snug': {'support_type': 'normal(auto)'},
+                    'tree': {'support_type': 'tree(auto)'},
+                    'organic': {'support_type': 'tree(auto)'},
+                },
+            },
         }
     
     def log(self, level: str, message: str):
@@ -403,11 +455,16 @@ class PrusaOrcaConverter:
                 }
                 
                 mapped_count = 0
-                # Convert parameters
+                # Convert parameters with value mapping
                 for param, value in config.items():
                     if param in self.parameter_map[ini_type]:
                         orca_param = self.parameter_map[ini_type][param]
+                        if ini_type in self.value_map and param in self.value_map[ini_type]:
+                            value = self.value_map[ini_type][param].get(value, value)
                         orca_config[orca_param] = value
+                        if ini_type in self.extra_param_map and param in self.extra_param_map[ini_type]:
+                            for k, v in self.extra_param_map[ini_type][param].get(value, {}).items():
+                                orca_config[k] = v
                         mapped_count += 1
                     #else:
                     #    print(f"[CONVERT]     Unmapped param: {param}={value}", flush=True)
