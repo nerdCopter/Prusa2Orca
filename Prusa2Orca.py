@@ -152,19 +152,118 @@ class PrusaOrcaConverter:
         """Initialize parameter mappings between Prusa and Orca"""
         self.parameter_map = {
             'print': {
+                # Shell
                 'bottom_solid_layers': 'bottom_shell_layers',
+                'top_solid_layers': 'top_shell_layers',
+                'bottom_solid_min_thickness': 'bottom_shell_thickness',
+                'top_solid_min_thickness': 'top_shell_thickness',
+                'perimeters': 'wall_loops',
+                'layer_height': 'layer_height',
+                'perimeter_generator': 'wall_generator',
                 'fill_pattern': 'sparse_infill_pattern',
                 'fill_density': 'sparse_infill_density',
-                'layer_height': 'layer_height',
-                'perimeters': 'wall_loops',
-                'top_solid_layers': 'top_shell_layers',
+                'gap_fill_speed': 'gap_infill_speed',
+                # Speeds
                 'infill_speed': 'sparse_infill_speed',
                 'perimeter_speed': 'outer_wall_speed',
+                'external_perimeter_speed': 'outer_wall_speed',
+                'small_perimeter_speed': 'small_perimeter_speed',
+                'solid_infill_speed': 'internal_solid_infill_speed',
+                'top_solid_infill_speed': 'top_surface_speed',
+                'bridge_speed': 'bridge_speed',
                 'first_layer_speed': 'initial_layer_speed',
+                'first_layer_infill_speed': 'initial_layer_infill_speed',
+                'travel_speed': 'travel_speed',
+                'travel_speed_z': 'travel_speed_z',
+                'ironing_speed': 'ironing_speed',
+                'support_material_speed': 'support_speed',
+                'support_material_interface_speed': 'support_interface_speed',
+                # Overhang speeds
+                'enable_dynamic_overhang_speeds': 'enable_overhang_speed',
+                'overhang_speed_0': 'overhang_1_4_speed',
+                'overhang_speed_1': 'overhang_2_4_speed',
+                'overhang_speed_2': 'overhang_3_4_speed',
+                'overhang_speed_3': 'overhang_4_4_speed',
+                # Accelerations
+                'default_acceleration': 'default_acceleration',
+                'perimeter_acceleration': 'inner_wall_acceleration',
+                'external_perimeter_acceleration': 'outer_wall_acceleration',
+                'infill_acceleration': 'sparse_infill_acceleration',
+                'solid_infill_acceleration': 'internal_solid_infill_acceleration',
+                'top_solid_infill_acceleration': 'top_surface_acceleration',
+                'bridge_acceleration': 'bridge_acceleration',
+                'first_layer_acceleration': 'initial_layer_acceleration',
+                'travel_acceleration': 'travel_acceleration',
+                # Ironing
+                'ironing_type': 'ironing_type',
+                'ironing_flowrate': 'ironing_flow',
+                'ironing_spacing': 'ironing_spacing',
+                # Seam
+                'seam_position': 'seam_position',
+                'seam_gap_distance': 'seam_gap',
+                'staggered_inner_seams': 'staggered_inner_seams',
+                # Support
                 'support_material': 'enable_support',
-                'brim_width': 'brim_width',
+                'support_material_style': 'support_style',
+                'support_material_pattern': 'support_base_pattern',
+                'support_material_contact_distance': 'support_top_z_distance',
+                'support_material_bottom_contact_distance': 'support_bottom_z_distance',
+                'support_material_interface_layers': 'support_interface_top_layers',
+                'support_material_interface_pattern': 'support_interface_pattern',
+                'support_material_interface_spacing': 'support_interface_spacing',
+                'support_material_spacing': 'support_base_pattern_spacing',
+                'support_material_buildplate_only': 'support_on_build_plate_only',
+                'support_material_xy_spacing': 'support_object_xy_distance',
+                'support_material_threshold': 'support_threshold_angle',
+                'support_material_extruder': 'support_filament',
+                'support_material_interface_extruder': 'support_interface_filament',
+                'dont_support_bridges': 'bridge_no_support',
+                'raft_layers': 'raft_layers',
+                # Tree support
+                'support_tree_angle': 'tree_support_branch_angle',
+                'support_tree_branch_diameter': 'tree_support_branch_diameter',
+                'support_tree_branch_distance': 'tree_support_branch_distance',
+                'support_tree_tip_diameter': 'tree_support_tip_diameter',
+                # Skirt / Brim
                 'skirts': 'skirt_loops',
-                'skirt_distance': 'skirt_distance'
+                'skirt_distance': 'skirt_distance',
+                'skirt_height': 'skirt_height',
+                'brim_width': 'brim_width',
+                'brim_type': 'brim_type',
+                'brim_separation': 'brim_object_gap',
+                # Fuzzy skin
+                'fuzzy_skin': 'fuzzy_skin',
+                'fuzzy_skin_thickness': 'fuzzy_skin_thickness',
+                'fuzzy_skin_point_dist': 'fuzzy_skin_point_distance',
+                # First layer
+                'first_layer_height': 'initial_layer_print_height',
+                # Quality / features
+                'thin_walls': 'detect_thin_wall',
+                                'overhangs': 'detect_overhang_wall',
+                'extra_perimeters_on_overhangs': 'extra_perimeters_on_overhangs',
+                'thick_bridges': 'thick_bridges',
+                'avoid_crossing_perimeters': 'reduce_crossing_wall',
+                'avoid_crossing_perimeters_max_detour': 'max_travel_detour_distance',
+                'interface_shells': 'interface_shells',
+                'elefant_foot_compensation': 'elefant_foot_compensation',
+                'spiral_vase': 'spiral_mode',
+                'standby_temperature_delta': 'standby_temperature_delta',
+                'ooze_prevention': 'ooze_prevention',
+                'single_extruder_multi_material_priming': 'single_extruder_multi_material_priming',
+                # Infill
+                'fill_angle': 'infill_direction',
+                'infill_overlap': 'infill_wall_overlap',
+                'solid_infill_below_area': 'minimum_sparse_infill_area',
+                'bottom_fill_pattern': 'bottom_surface_pattern',
+                'top_fill_pattern': 'top_surface_pattern',
+                # Arc
+                'arc_fitting': 'enable_arc_fitting',
+                # Misc
+                'resolution': 'resolution',
+                'slice_closing_radius': 'slice_closing_radius',
+                'slicing_mode': 'slicing_mode',
+                'draft_shield': 'draft_shield',
+                'xy_size_compensation': 'xy_contour_compensation',
             },
             'filament': {
                 'bed_temperature': 'hot_plate_temp',
@@ -172,13 +271,60 @@ class PrusaOrcaConverter:
                 'first_layer_temperature': 'nozzle_temperature_initial_layer',
                 'filament_type': 'filament_type',
                 'filament_density': 'filament_density',
-                'filament_diameter': 'filament_diameter'
+                'filament_diameter': 'filament_diameter',
+                'filament_max_volumetric_speed': 'max_volumetric_speed',
+                'extrusion_multiplier': 'filament_flow_ratio',
+                'chamber_temperature': 'chamber_temperature',
+                'chamber_minimal_temperature': 'chamber_minimal_temperature',
+                # Fan
+                'max_fan_speed': 'fan_max_speed',
+                'min_fan_speed': 'fan_min_speed',
+                'fan_below_layer_time': 'fan_cooling_layer_time',
+                'slowdown_below_layer_time': 'slow_down_layer_time',
+                'full_fan_speed_layer': 'full_fan_speed_layer',
             },
             'printer': {
                 'bed_shape': 'printable_area',
                 'nozzle_diameter': 'nozzle_diameter',
-                'extruder_offset': 'extruder_offset'
-            }
+                'extruder_offset': 'extruder_offset',
+                'max_print_height': 'printable_height',
+                'printer_model': 'printer_model',
+                'printer_variant': 'printer_variant',
+                'printer_notes': 'printer_notes',
+                'gcode_flavor': 'gcode_flavor',
+                'print_host': 'print_host',
+                'printhost_apikey': 'printhost_apikey',
+                'silent_mode': 'silent_mode',
+                'use_firmware_retraction': 'use_firmware_retraction',
+                'use_relative_e_distances': 'use_relative_e_distances',
+                'use_volumetric_e': 'use_volumetric_e',
+                'host_type': 'host_type',
+                'high_current_on_filament_swap': 'high_current_on_filament_swap',
+                'machine_max_acceleration_x': 'machine_max_acceleration_x',
+                'machine_max_acceleration_y': 'machine_max_acceleration_y',
+                'machine_max_acceleration_z': 'machine_max_acceleration_z',
+                'machine_max_acceleration_e': 'machine_max_acceleration_e',
+                'machine_max_acceleration_extruding': 'machine_max_acceleration_extruding',
+                'machine_max_acceleration_retracting': 'machine_max_acceleration_retracting',
+                'machine_max_acceleration_travel': 'machine_max_acceleration_travel',
+                'machine_max_feedrate_x': 'machine_max_speed_x',
+                'machine_max_feedrate_y': 'machine_max_speed_y',
+                'machine_max_feedrate_z': 'machine_max_speed_z',
+                'machine_max_feedrate_e': 'machine_max_speed_e',
+                'machine_max_jerk_x': 'machine_max_jerk_x',
+                'machine_max_jerk_y': 'machine_max_jerk_y',
+                'machine_max_jerk_z': 'machine_max_jerk_z',
+                'machine_max_jerk_e': 'machine_max_jerk_e',
+                'machine_max_junction_deviation': 'machine_max_junction_deviation',
+                'machine_min_extruding_rate': 'machine_min_extruding_rate',
+                'machine_min_travel_rate': 'machine_min_travel_rate',
+                'max_layer_height': 'max_layer_height',
+                'min_layer_height': 'min_layer_height',
+                'start_gcode': 'machine_start_gcode',
+                'end_gcode': 'machine_end_gcode',
+                'before_layer_gcode': 'before_layer_change_gcode',
+                'toolchange_gcode': 'change_filament_gcode',
+                            },
         }
     
     def log(self, level: str, message: str):
@@ -324,7 +470,7 @@ class ParameterEditor(tk.Frame):
         value = self.value_var.get().strip().lower()
         
         # Boolean parameters
-        if value in ["true", "false", "1", "0", "yes", "no"]:
+        if value in ["true", "false", "yes", "no"]:
             combo = ttk.Combobox(self, textvariable=self.value_var, 
                                values=["true", "false"], 
                                state="readonly", width=15)
@@ -356,7 +502,7 @@ class ParameterEditor(tk.Frame):
             combo = ttk.Combobox(self, textvariable=self.value_var,
                                values=["true", "false"],
                                state="readonly", width=15)
-            combo.set("true" if self.value_var.get().lower() in ["true", "1", "yes"] else "false")
+            combo.set("true" if self.value_var.get().strip().lower() in ["true", "1", "yes"] else "false")
             return combo
         
         if self.param_name in ["filament_type"]:
