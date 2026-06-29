@@ -443,14 +443,12 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
         self.root.title(APP_NAME)
         self.cli_input = input_file
         self.cli_output = output_dir
+        self.log_messages = []
         try:
             self.root.iconbitmap(resource_path("Prusa2Orca.ico"))
         except Exception as e:
-            print(f"[GUI INIT] Icon load error: {e}", flush=True)
+            self.add_log_message(self._(f"Icon load error: {e}"))
         self.root.geometry("1200x800")
-        
-        # Initialize variables
-        self.log_messages = []
         self.current_language = "en"  # Default language set to English
         self.loaded_parameters = {}
         self.parameter_widgets = {
