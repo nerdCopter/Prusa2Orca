@@ -139,14 +139,11 @@ class PrusaOrcaConverter:
     def __init__(self, log_callback=None):
         
         """Initialize the converter with optional log callback"""
-        print("[CONV INIT] Creating PrusaOrcaConverter...", flush=True)
         self.log_callback = log_callback
         self.initialize_parameter_mappings()
-        print("[CONV INIT] Converter initialized", flush=True)
         
     def initialize_parameter_mappings(self):
         """Initialize parameter mappings between Prusa and Orca"""
-        print("[CONV MAP] Initializing parameter mappings...", flush=True)
         self.parameter_map = {
             'print': {
                 'bottom_solid_layers': 'bottom_shell_layers',
@@ -182,13 +179,11 @@ class PrusaOrcaConverter:
         """Log a message with timestamp"""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message = f"[{timestamp}] {level.upper()}: {message}"
-        print(log_message, flush=True)
         if self.log_callback:
             self.log_callback(log_message)
     
     def read_ini_file(self, file_path: Path) -> Dict[str, Dict[str, str]]:
         """Read an INI file and return a dictionary of sections and key-value pairs"""
-        print(f"[READ] Reading INI file: {file_path}", flush=True)
         self.log("info", f"Reading INI file: {file_path}")
         config = configparser.ConfigParser(interpolation=None)
         config.optionxform = str  # Preserve case
@@ -202,31 +197,25 @@ class PrusaOrcaConverter:
                 parsed_config[section] = dict(config.items(section))
                 n = len(parsed_config[section])
                 self.log("debug", f"Section {section} has {n} parameters")
-                print(f"[READ]   Section [{section}] -> {n} params", flush=True)
             
-            print(f"[READ] Total: {len(parsed_config)} sections, {sum(len(v) for v in parsed_config.values())} params", flush=True)
+            total_params = sum(len(v) for v in parsed_config.values())
+            self.log("info", f"Read {len(parsed_config)} sections, {total_params} total parameters")
             return parsed_config
         except Exception as e:
             self.log("error", f"Failed to read INI file: {str(e)}")
-            print(f"[READ ERROR] {e}", flush=True)
             return {}
     
     def convert_config(self, input_file: Path, output_dir: Path, updated_configs: Dict[str, Dict[str, str]]) -> bool:
         """Convert config from Prusa to Orca format"""
-        print(f"[CONVERT] Starting conversion for {input_file.name}", flush=True)
-        print(f"[CONVERT] Output dir: {output_dir}", flush=True)
-        print(f"[CONVERT] {len(updated_configs)} sections to convert", flush=True)
         try:
             self.log("info", f"Starting conversion for {input_file.name}")
             
             if not updated_configs:
                 self.log("error", "No configurations provided for conversion")
-                print("[CONVERT ERROR] No configurations provided", flush=True)
                 return False
             
             # Create output directory if it doesn't exist
             output_dir.mkdir(parents=True, exist_ok=True)
-            print(f"[CONVERT] Output directory ready: {output_dir}", flush=True)
             
             # Process each section
             for section_name, config in updated_configs.items():
@@ -238,12 +227,12 @@ class PrusaOrcaConverter:
                     ini_type = "print"
                     profile_name = section_name
                 
-                print(f"[CONVERT]   Processing [{ini_type}] {profile_name} ({len(config)} params)", flush=True)
                 
                 if ini_type not in self.parameter_map:
                     self.log("warning", f"Skipping unsupported section type: {ini_type}")
-                    print(f"[CONVERT]   SKIPPED (unsupported type: {ini_type})", flush=True)
                     continue
+                
+                self.log("info", f"  Converting [{ini_type}] {profile_name} ({len(config)} params)")
                 
                 # Create Orca config structure
                 orca_config = {
@@ -270,16 +259,13 @@ class PrusaOrcaConverter:
                 with open(output_file, 'w', encoding='utf-8') as f:
                     json.dump(orca_config, f, indent=4, ensure_ascii=False)
                 
-                print(f"[CONVERT]   WROTE {output_file} ({mapped_count} params mapped)", flush=True)
-                self.log("info", f"Saved config to {output_file}")
+                self.log("info", f"  Saved {safe_name}.json ({mapped_count} params mapped)")
             
             self.log("info", "Conversion completed successfully")
-            print("[CONVERT] Done - all sections converted successfully", flush=True)
             return True
             
         except Exception as e:
             self.log("error", f"Conversion failed: {str(e)}")
-            print(f"[CONVERT ERROR] {e}", flush=True)
             traceback.print_exc()
             return False
 
@@ -453,7 +439,6 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
     }
 
     def __init__(self, root, input_file=None, output_dir=None):
-        print("[GUI INIT] Initializing ConverterApp...", flush=True)
         self.root = root
         self.root.title(APP_NAME)
         self.cli_input = input_file
@@ -463,7 +448,6 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
         except Exception as e:
             print(f"[GUI INIT] Icon load error: {e}", flush=True)
         self.root.geometry("1200x800")
-        print("[GUI INIT] Window geometry set", flush=True)
         
         # Initialize variables
         self.log_messages = []
@@ -495,7 +479,6 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
         self.setup_main_tab()
         self.setup_settings_tab()
         self.setup_about_tab()
-        print("[GUI INIT] All tabs set up", flush=True)
 
         # Pre-fill from CLI args if provided
         if self.cli_input:
@@ -659,7 +642,6 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
     
     def load_parameters(self, file_path: str):
         """Load parameters from the input file with progress tracking"""
-        print(f"[LOAD] Loading parameters from: {file_path}", flush=True)
         # Clear previous parameters
         for widget in self.printer_settings_frame.winfo_children():
             widget.destroy()
@@ -681,10 +663,8 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
             self.root.update_idletasks()
             
             all_configs = self.converter.read_ini_file(Path(file_path))
-            print(f"[LOAD] read_ini_file returned {len(all_configs)} sections", flush=True)
             if not all_configs:
                 self.add_log_message(self._("Error: No configurations found in file."))
-                print("[LOAD ERROR] No configurations found in file", flush=True)
                 return
             
             total_sections = len(all_configs)
@@ -735,7 +715,7 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                     # Only show parameters that have a mapping in the converter
                     mapped_params = self.converter.parameter_map.get(ini_type, {})
                     filtered = [(p, v) for p, v in config.items() if p in mapped_params]
-                    print(f"[LOAD]   Filtered {len(config)} -> {len(filtered)} mapped params for [{ini_type}] section", flush=True)
+                    self.add_log_message(f"Section {section_name}: {len(filtered)} of {len(config)} parameters are mappable")
                     
                     for param, value in filtered:
                         param_count += 1
@@ -755,14 +735,18 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
             
             self.progress_var.set(100)
             self.progress_status.config(text=self._("Loading completed successfully"))
-            self.add_log_message(self._("Parameters loaded successfully"))
-            print(f"[LOAD] Done - {len(self.loaded_parameters)} sections loaded", flush=True)
+            total_mappable = sum(
+                len([p for p in cfg if p in self.converter.parameter_map.get(
+                    sec.split(":")[0].lower() if ":" in sec else "print", {}
+                )])
+                for sec, cfg in self.loaded_parameters.items()
+            )
+            self.add_log_message(f"Loaded {len(self.loaded_parameters)} sections ({total_mappable} mappable parameters)")
             
         except Exception as e:
             self.progress_var.set(0)
             self.progress_status.config(text=self._(f"Loading error: {str(e)}"))
             self.add_log_message(self._(f"Error loading parameters: {str(e)}"))
-            print(f"[LOAD ERROR] {e}", flush=True)
             traceback.print_exc()
             messagebox.showerror(self._("Error"), self._(f"Failed to load parameters: {str(e)}"))
         finally:
@@ -771,25 +755,19 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
     
     def convert(self):
         """Perform the conversion"""
-        print("\n[APP CONVERT] ===== CONVERT BUTTON PRESSED =====", flush=True)
         input_file = self.input_file_entry.get()
         output_dir = self.output_dir_entry.get()
-        print(f"[APP CONVERT] Input:  {input_file}", flush=True)
-        print(f"[APP CONVERT] Output: {output_dir}", flush=True)
         
         if not input_file:
             messagebox.showerror(self._("Error"), self._("Please select an input file"))
-            print("[APP CONVERT ERROR] No input file selected", flush=True)
             return
         
         if not output_dir:
             messagebox.showerror(self._("Error"), self._("Please select an output directory"))
-            print("[APP CONVERT ERROR] No output directory selected", flush=True)
             return
         
         try:
             # Clear log
-            self.log_text.delete(1.0, tk.END)
             
             # Collect parameters from all tabs
             self.progress_status.config(text=self._("Preparing parameters for conversion..."))
@@ -806,7 +784,7 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
                                 param, value = result
                                 updated_configs[section_name][param] = value
             total_params = sum(len(v) for v in updated_configs.values())
-            print(f"[APP CONVERT] Collected {len(updated_configs)} sections ({total_params} enabled params)", flush=True)
+            self.add_log_message(f"Collected {len(updated_configs)} sections ({total_params} enabled parameters)")
             
             # Perform conversion
             self.add_log_message(self._("Starting conversion..."))
@@ -817,16 +795,13 @@ Versión de OrcaSlicer soportada: {ORCA_SLICER_VERSION}
             
             if success:
                 self.progress_status.config(text=self._("Conversion completed successfully"))
-                print("[APP CONVERT] Conversion SUCCESS", flush=True)
                 messagebox.showinfo(self._("Success"), self._("Conversion completed successfully"))
             else:
                 self.progress_status.config(text=self._("Conversion failed"))
-                print("[APP CONVERT] Conversion FAILED", flush=True)
                 messagebox.showerror(self._("Error"), self._("Conversion failed"))
         
         except Exception as e:
             self.progress_status.config(text=self._(f"Conversion error: {str(e)}"))
-            print(f"[APP CONVERT ERROR] {e}", flush=True)
             traceback.print_exc()
             messagebox.showerror(self._("Error"), self._("An error occurred during conversion:") + f"\n{str(e)}")
     
@@ -865,12 +840,6 @@ def exception_handler(exc_type, exc_value, exc_traceback):
     traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
 
 def main():
-    print("\n" + "=" * 60, flush=True)
-    print(f"  {APP_NAME}", flush=True)
-    print(f"  Author: {AUTHOR}", flush=True)
-    print(f"  OrcaSlicer target: {ORCA_SLICER_VERSION}", flush=True)
-    print("=" * 60 + "\n", flush=True)
-    print("[MAIN] Starting application...", flush=True)
     sys.excepthook = exception_handler
 
     parser = argparse.ArgumentParser(description="Convert PrusaSlicer configuration to OrcaSlicer format")
@@ -879,13 +848,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        print("[MAIN] Creating tkinter root window...", flush=True)
         root = tk.Tk()
-        print("[MAIN] Root window created, initializing app...", flush=True)
         app = ConverterApp(root, input_file=args.input, output_dir=args.output)
-        print("[MAIN] Entering main event loop...", flush=True)
         root.mainloop()
-        print("[MAIN] Application exited normally", flush=True)
     except Exception as e:
         print(f"[MAIN FATAL] {e}", file=sys.stderr, flush=True)
         traceback.print_exc()
