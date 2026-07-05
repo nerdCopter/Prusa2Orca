@@ -468,7 +468,10 @@ class PrusaOrcaConverter:
                 # Machine limits / temperature reporting
                 'machine_limits_usage': 'emit_machine_limits_to_gcode',
                 'remaining_times': 'disable_m73',
-                'prefer_clockwise_movements': 'wall_direction',
+                # NOTE: prefer_clockwise_movements has no valid target here - Orca's
+                # wall_direction is a print-type key only. Confirmed via OrcaSlicer's
+                # own log: "contains the following incorrect keys: wall_direction,
+                # which were removed" when loading a machine preset with it set.
                 'machine_max_acceleration_x': 'machine_max_acceleration_x',
                 'machine_max_acceleration_y': 'machine_max_acceleration_y',
                 'machine_max_acceleration_z': 'machine_max_acceleration_z',
@@ -581,10 +584,6 @@ class PrusaOrcaConverter:
                     '1': '0',
                     '0': '1',
                 },
-                'prefer_clockwise_movements': {
-                    '1': 'cw',
-                    '0': 'ccw',
-                },
             },
         }
         self.extra_param_map = {
@@ -673,6 +672,25 @@ class PrusaOrcaConverter:
             'template_custom_gcode', 'thumbnails', 'between_objects_gcode', 'layer_gcode',
             'pause_print_gcode', 'start_gcode', 'end_gcode', 'before_layer_gcode',
             'toolchange_gcode',
+        }
+        # Orca target keys backed by a *_Nullable option type (created via add_nullable()
+        # in PrintConfig.cpp for the per-filament retract/travel overrides), where the
+        # literal string "nil" is the correct value meaning "inherit from the printer
+        # profile". Every other target is a plain (non-nullable) option: PrusaSlicer
+        # itself writes literal "nil" as an N/A placeholder for options that don't apply
+        # to the current printer (e.g. idle_temperature on a single-extruder machine), and
+        # Orca's loader throws "Deserializing nil into a non-nullable object" - which
+        # aborts loading the *entire* file, not just that field - if "nil" lands anywhere
+        # else. Confirmed via OrcaSlicer's own debug log.
+        self.nullable_orca_keys = {
+            'filament_retraction_length', 'filament_z_hop', 'filament_z_hop_types',
+            'filament_retract_lift_above', 'filament_retract_lift_below',
+            'filament_retract_lift_enforce', 'filament_retraction_speed',
+            'filament_deretraction_speed', 'filament_retract_restart_extra',
+            'filament_retraction_minimum_travel', 'filament_wipe_distance',
+            'filament_retract_when_changing_layer', 'filament_wipe',
+            'filament_retract_before_wipe', 'filament_long_retractions_when_cut',
+            'filament_retraction_distances_when_cut',
         }
 
     @staticmethod
@@ -813,6 +831,14 @@ class PrusaOrcaConverter:
                 for param, value in config.items():
                     if param in self.parameter_map[ini_type]:
                         orca_param = self.parameter_map[ini_type][param]
+                        # PrusaSlicer writes literal "nil" for options that don't apply to
+                        # the current printer (e.g. idle_temperature on a single-extruder
+                        # machine). Only the per-filament override keys are backed by a
+                        # nullable type in Orca - writing "nil" anywhere else throws on
+                        # load and aborts the *whole file*, so drop the param instead.
+                        if value.strip().lower() == 'nil' and orca_param not in self.nullable_orca_keys:
+                            self.log("debug", f"    Skipping {param}: Prusa value is 'nil' (N/A) and {orca_param} isn't a nullable Orca field")
+                            continue
                         if ini_type in self.value_map and param in self.value_map[ini_type]:
                             value = self.value_map[ini_type][param].get(value, value)
                         elif param in self.value_transform_map.get(ini_type, {}):
