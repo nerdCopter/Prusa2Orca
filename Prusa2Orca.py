@@ -423,6 +423,7 @@ class PrusaOrcaConverter:
                 'printer_model': 'printer_model',
                 'printer_variant': 'printer_variant',
                 'printer_notes': 'printer_notes',
+                'printer_technology': 'printer_technology',
                 'gcode_flavor': 'gcode_flavor',
                 'print_host': 'print_host',
                 'printhost_apikey': 'printhost_apikey',
