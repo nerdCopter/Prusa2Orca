@@ -205,6 +205,7 @@ class PrusaOrcaConverter:
                 # Support
                 'support_material': 'enable_support',
                 'support_material_style': 'support_style',
+                'support_material_angle': 'support_angle',
                 'support_material_pattern': 'support_base_pattern',
                 'support_material_contact_distance': 'support_top_z_distance',
                 'support_material_bottom_contact_distance': 'support_bottom_z_distance',
@@ -217,6 +218,7 @@ class PrusaOrcaConverter:
                 'support_material_threshold': 'support_threshold_angle',
                 'support_material_extruder': 'support_filament',
                 'support_material_interface_extruder': 'support_interface_filament',
+                'support_material_enforce_layers': 'enforce_support_layers',
                 'dont_support_bridges': 'bridge_no_support',
                 'raft_layers': 'raft_layers',
                 # Tree support
