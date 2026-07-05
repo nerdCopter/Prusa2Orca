@@ -272,7 +272,7 @@ class PrusaOrcaConverter:
                 'filament_type': 'filament_type',
                 'filament_density': 'filament_density',
                 'filament_diameter': 'filament_diameter',
-                'filament_max_volumetric_speed': 'max_volumetric_speed',
+                'filament_max_volumetric_speed': 'filament_max_volumetric_speed',
                 'extrusion_multiplier': 'filament_flow_ratio',
                 'chamber_temperature': 'chamber_temperature',
                 'chamber_minimal_temperature': 'chamber_minimal_temperature',
@@ -297,7 +297,6 @@ class PrusaOrcaConverter:
                 'silent_mode': 'silent_mode',
                 'use_firmware_retraction': 'use_firmware_retraction',
                 'use_relative_e_distances': 'use_relative_e_distances',
-                'use_volumetric_e': 'use_volumetric_e',
                 'host_type': 'host_type',
                 'high_current_on_filament_swap': 'high_current_on_filament_swap',
                 'machine_max_acceleration_x': 'machine_max_acceleration_x',
@@ -366,6 +365,12 @@ class PrusaOrcaConverter:
                     'outer_brim': 'outer_only',
                     'inner_brim': 'inner_only',
                 },
+                # Prusa 2.9.x stores this as an enum ("disabled"/"emit_center"),
+                # but Orca's enable_arc_fitting is a plain bool.
+                'arc_fitting': {
+                    'disabled': '0',
+                    'emit_center': '1',
+                },
             },
         }
         self.extra_param_map = {
@@ -378,7 +383,94 @@ class PrusaOrcaConverter:
                 },
             },
         }
-    
+        # Orca option keys whose value must be a JSON array of strings (per-extruder /
+        # nullable-override types: coFloats, coInts, coBools, coPercents, coPoints).
+        # Prusa stores these as a single string, comma-separated when there are
+        # multiple extruders. Scoped to only the keys this file's parameter_map
+        # actually maps to - verified against Orca v2.4.1's PrintConfig.cpp types.
+        self.vector_orca_keys = {
+            'hot_plate_temp', 'nozzle_temperature', 'nozzle_temperature_initial_layer',
+            'filament_density', 'filament_diameter', 'filament_flow_ratio',
+            'filament_max_volumetric_speed',
+            'chamber_temperature', 'chamber_minimal_temperature', 'fan_max_speed',
+            'fan_min_speed', 'fan_cooling_layer_time', 'slow_down_layer_time',
+            'full_fan_speed_layer', 'printable_area', 'nozzle_diameter', 'extruder_offset',
+            'machine_max_acceleration_x', 'machine_max_acceleration_y',
+            'machine_max_acceleration_z', 'machine_max_acceleration_e',
+            'machine_max_acceleration_extruding', 'machine_max_acceleration_retracting',
+            'machine_max_acceleration_travel', 'machine_max_speed_x', 'machine_max_speed_y',
+            'machine_max_speed_z', 'machine_max_speed_e', 'machine_max_jerk_x',
+            'machine_max_jerk_y', 'machine_max_jerk_z', 'machine_max_jerk_e',
+            'machine_max_junction_deviation', 'machine_min_extruding_rate',
+            'machine_min_travel_rate', 'max_layer_height', 'min_layer_height',
+        }
+        # Subset of the above whose Prusa-side type is coStrings, which Slic3r/PrusaSlicer
+        # serializes as cstyle-quoted, ';'-separated text (see escape_strings_cstyle() in
+        # libslic3r/Config.cpp) instead of a plain comma-joined list.
+        self.vector_string_keys = {
+            'filament_type',
+        }
+        # Prusa (source) keys whose type is a scalar coString. Slic3r/PrusaSlicer
+        # serializes these with escape_string_cstyle(): literal "\n"/"\r"/"\\" text
+        # sequences instead of real newlines/backslashes, e.g. multi-line custom
+        # G-code blocks. Must be unescaped back to real characters on read, or Orca
+        # will render a literal backslash-n instead of a line break.
+        self.scalar_string_keys = {
+            'printer_model', 'printer_variant', 'printer_notes', 'print_host',
+            'printhost_apikey', 'start_gcode', 'end_gcode', 'before_layer_gcode',
+            'toolchange_gcode',
+        }
+
+    @staticmethod
+    def _unescape_strings_cstyle(value: str) -> List[str]:
+        """Parse a Slic3r/PrusaSlicer cstyle-escaped, ';'-separated string list."""
+        if value == '':
+            return []
+        out = []
+        i, n = 0, len(value)
+        while i < n:
+            while i < n and value[i] in ' \t':
+                i += 1
+            if i >= n:
+                break
+            buf = []
+            if value[i] == '"':
+                i += 1
+                while i < n and value[i] != '"':
+                    c = value[i]
+                    if c == '\\' and i + 1 < n:
+                        i += 1
+                        c = {'r': '\r', 'n': '\n'}.get(value[i], value[i])
+                    buf.append(c)
+                    i += 1
+                i += 1  # skip closing quote
+            else:
+                while i < n and value[i] != ';':
+                    buf.append(value[i])
+                    i += 1
+            out.append(''.join(buf))
+            while i < n and value[i] in ' \t':
+                i += 1
+            if i < n and value[i] == ';':
+                i += 1
+        return out
+
+    @staticmethod
+    def _unescape_string_cstyle(value: str) -> str:
+        """Unescape a Slic3r/PrusaSlicer cstyle-escaped scalar string (\\n, \\r, \\\\)."""
+        if '\\' not in value:
+            return value
+        out = []
+        i, n = 0, len(value)
+        while i < n:
+            c = value[i]
+            if c == '\\' and i + 1 < n:
+                i += 1
+                c = {'r': '\r', 'n': '\n'}.get(value[i], value[i])
+            out.append(c)
+            i += 1
+        return ''.join(out)
+
     def log(self, level: str, message: str):
         """Log a message with timestamp"""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -431,6 +523,11 @@ class PrusaOrcaConverter:
             
             # Process each section
             for section_name, config in updated_configs.items():
+                # "[presets]" is bundle metadata (which profile is selected in each
+                # category), not an actual settings profile - skip it.
+                if section_name.strip().lower() == "presets":
+                    self.log("info", f"  Skipping metadata section: {section_name}")
+                    continue
                 # Determine config type from section name
                 if ":" in section_name:
                     ini_type = section_name.split(":")[0].lower()
@@ -438,22 +535,25 @@ class PrusaOrcaConverter:
                 else:
                     ini_type = "print"
                     profile_name = section_name
-                
-                
+
+
                 if ini_type not in self.parameter_map:
                     self.log("warning", f"Skipping unsupported section type: {ini_type}")
                     continue
-                
+
                 self.log("info", f"  Converting [{ini_type}] {profile_name} ({len(config)} params)")
-                
+
                 # Create Orca config structure
+                # NOTE: filament_settings_id is coStrings (a JSON array) in Orca, while
+                # print_settings_id/printer_settings_id are plain coString scalars.
+                settings_id_value = [profile_name] if ini_type == "filament" else profile_name
                 orca_config = {
-                    f"{ini_type}_settings_id": profile_name,
+                    f"{ini_type}_settings_id": settings_id_value,
                     "name": profile_name,
                     "from": "User",
                     "version": ORCA_SLICER_VERSION
                 }
-                
+
                 mapped_count = 0
                 # Convert parameters with value mapping
                 for param, value in config.items():
@@ -461,7 +561,14 @@ class PrusaOrcaConverter:
                         orca_param = self.parameter_map[ini_type][param]
                         if ini_type in self.value_map and param in self.value_map[ini_type]:
                             value = self.value_map[ini_type][param].get(value, value)
-                        orca_config[orca_param] = value
+                        if param in self.scalar_string_keys:
+                            value = self._unescape_string_cstyle(value)
+                        if orca_param in self.vector_string_keys:
+                            orca_config[orca_param] = self._unescape_strings_cstyle(value)
+                        elif orca_param in self.vector_orca_keys:
+                            orca_config[orca_param] = [v.strip() for v in value.split(',')]
+                        else:
+                            orca_config[orca_param] = value
                         if ini_type in self.extra_param_map and param in self.extra_param_map[ini_type]:
                             for k, v in self.extra_param_map[ini_type][param].get(value, {}).items():
                                 orca_config[k] = v
